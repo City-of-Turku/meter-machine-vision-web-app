@@ -139,7 +139,6 @@ const OCRWebApp = () => {
     const triggerInput = useCallback(() => { inputRef.current?.click(); }, []);
 
     const imageVariants = {};
-    const resultVariants = {};
 
     useEffect(() => {
         const currentPreview = preview; // Capture preview value
@@ -198,22 +197,41 @@ const OCRWebApp = () => {
                 {error && ( <div className="p-4 rounded-lg bg-red-100 border border-red-300 text-red-700" role="alert"><span className="font-semibold">Error:</span> {error}</div> )}
 
                 {/* Results Section*/}
-                 {results.length > 0 && !loading && ( <div style={boxStyle} >
-                    <h2 className="text-xl sm:text-2xl font-semibold mb-4 text-center" style={{ color: primaryColor }}>OCR Results</h2>
-                     <div className="space-y-3">
-                        <AnimatePresence>
-                            {results.map((result, index) => ( <motion.div key={index} variants={resultVariants} /* ... */ >
-                                {/* ... result text ... */}
-                                <p /* ... */ >{result || <span className="text-gray-500 italic">Empty line</span>}</p>
-                                {/* ... copy button ... */}
-                                <Button style={{backgroundColor: primaryColor}} onClick={() => handleCopy(result, index)} /* ... */ >
-                                    {copiedIndex === index ? <CheckCircle className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                                    <span className="hidden sm:inline">Copy</span>
-                                </Button>
-                            </motion.div> ))}
-                        </AnimatePresence>
+                {results.length > 0 && !loading && (
+                    <div style={boxStyle}>
+                        <h2 className="text-xl sm:text-2xl font-semibold mb-4" style={{ color: primaryColor }}>
+                            OCR Results
+                        </h2>
+
+                        <ul className="space-y-3">
+                        {results.map((result, index) => (
+                            <li
+                                key={index}
+                                className="flex flex-col sm:flex-row sm:justify-between sm:items-center bg-white rounded-lg px-4 py-3 shadow-sm border border-[#0062ae]/10 space-y-2 sm:space-y-0"
+                            >
+                                <p className="text-gray-800">
+                                    {result || <span className="text-gray-400 italic">Empty line</span>}
+                                </p>
+
+                                <div className="w-full sm:w-auto">
+                                    <Button
+                                        onClick={() => handleCopy(result, index)}
+                                        className="w-full sm:w-auto justify-center"
+                                        style={{ backgroundColor: primaryColor }}
+                                    >
+                                    {copiedIndex === index ? (
+                                        <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                                    ) : (
+                                        <Copy className="w-4 h-4 mr-2" />
+                                    )}
+                                    <span>Copy Text</span>
+                                    </Button>
+                                </div>
+                            </li>
+                        ))}
+                        </ul>
                     </div>
-                 </div> )}
+                )}
             </div>
         </main>
     );
