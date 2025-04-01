@@ -21,6 +21,9 @@ Create .env.local file and add following envs:
 - `AZURE_ENDPOINT`
 - `AZURE_KEY`
 
+To enable the mock switch for debugging purposes, set a truthy value for the following environment variable:
+- `NEXT_PUBLIC_MOCK_SWITCH`
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More

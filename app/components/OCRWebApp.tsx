@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 
 const MAX_FILE_SIZE_MB = 4;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-
+const MOCK_SWITCH = process.env.NEXT_PUBLIC_MOCK_SWITCH;
 
 // Client-side helper functions for immediate user feedback
 const isFileSizeValid = (file: File): boolean => {
@@ -155,12 +155,12 @@ const OCRWebApp = () => {
                 <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-center" style={{ color: primaryColor }}>
                     Image to Text (OCR)
                 </h1>
-
+                {(MOCK_SWITCH) && (
                 <div className="flex items-center space-x-2 justify-center">
-                     <Switch id="mock-mode" checked={useMockResults} onCheckedChange={setUseMockResults} />
-                     <Label htmlFor="mock-mode">Use Mock Results</Label>
-                 </div>
-
+                    <Switch id="mock-mode" checked={useMockResults} onCheckedChange={setUseMockResults} />
+                    <Label htmlFor="mock-mode">Use Mock Results</Label>
+                </div>)
+                }
 
                  {/* Input Section*/}
                  {/*                 </div><div className="rounded-xl p-4 sm:p-6 shadow-lg" style={{ backgroundColor: `${whiteColor}cc`, backdropFilter: 'blur(8px)', border: `1px solid ${primaryColor}20` }}>
