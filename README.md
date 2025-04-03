@@ -18,10 +18,15 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 Create .env.local file and add following envs:
 
-- `AZURE_ENDPOINT`
+- `AZURE_ENDPOINT` e.g. "https://your-endpoint.cognitiveservices.azure.com/"
 - `AZURE_KEY`
+- `AZURE_OPENAI_ENDPOINT` e.g. "https://your-endpoint.openai.azure.com/"
+- `AZURE_OPENAI_API_KEY`
+- `AZURE_OPENAI_DEPLOYMENT_NAME`
+- `AZURE_OPENAI_API_VERSION`
 
 To enable the mock switch for debugging purposes, set a truthy value for the following environment variable:
+
 - `NEXT_PUBLIC_MOCK_SWITCH`
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
