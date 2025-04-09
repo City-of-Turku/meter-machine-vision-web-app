@@ -1,3 +1,8 @@
+# Machine Vision & Meter Reader Web App
+
+This application serves as a testing platform for machine vision, meter reading, and similar use cases.
+It includes both a traditional OCR reader and an AI-based image reader.
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
@@ -30,6 +35,24 @@ To enable the mock switch for debugging purposes, set a truthy value for the fol
 - `NEXT_PUBLIC_MOCK_SWITCH`
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Docker Deployment
+
+To run this app with Docker or another container environment, ensure that Docker is correctly installed.
+Next, make sure you have created and populated the required .env files.
+Then, create a `Caddyfile` based on the provided `Caddyfile.example`.
+
+To build the Docker images, run:
+
+```
+docker compose build
+```
+
+After building the images, start the app with:
+
+```
+docker compose up
+```
 
 ## Learn More
 

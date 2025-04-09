@@ -1,0 +1,8 @@
+# Caddyfile
+
+http://your-ip-address:80 {
+    # frontend (catch-all)
+    handle /* {
+        reverse_proxy frontend:3000
+    }
+}
