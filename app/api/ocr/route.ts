@@ -6,6 +6,7 @@ const AZURE_ENDPOINT = process.env.AZURE_ENDPOINT;
 const AZURE_KEY = process.env.AZURE_KEY;
 const MAX_FILE_SIZE_MB = 4;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+const OCR4 = true; // Set to true to use the new OCR API
 
 // Helper function to check file type (now checks File object)
 const isFileTypeValid = (file: File): boolean => {
@@ -26,8 +27,14 @@ const performServerSideOCR = async (
         console.error("Server configuration error: Missing Azure credentials.");
         throw new Error("Server configuration error.");
     }
+    
+    let analyzeUrl = ""
+    if (OCR4 == true) {
+        analyzeUrl = `${AZURE_ENDPOINT}computervision/imageanalysis:analyze?api-version=2024-02-01&model-version=latest&features=read&language=en`;
+    } else {
+        analyzeUrl = `${AZURE_ENDPOINT}vision/v3.2/ocr?language=en&detectOrientation=true`;
+    }
 
-    const analyzeUrl = `${AZURE_ENDPOINT}vision/v3.2/ocr?language=en&detectOrientation=true`;
     const headers = {
         'Content-Type': mimeType || 'application/octet-stream',
         'Ocp-Apim-Subscription-Key': AZURE_KEY,
@@ -51,16 +58,34 @@ const performServerSideOCR = async (
 
         // Process the response
         const lines: string[] = [];
-        if (data.regions) {
-            data.regions.forEach((region: any) => {
-                region.lines.forEach((line: any) => {
-                    let lineText = "";
-                    line.words.forEach((word: any) => {
-                        lineText += word.text + " ";
+        if (OCR4 == true) {
+            const blocks = data.readResult?.blocks || [];   
+            if (blocks.length > 0) {
+                blocks.forEach((block: any) => {
+                    block.lines.forEach((line: any) => {
+                        let lineText = "";
+                        line.words.forEach((word: any) => {
+                            lineText += word.text + " ";
+                        });
+                        lines.push(lineText.trim());
                     });
-                    lines.push(lineText.trim());
+                    
                 });
-            });
+            }
+        }
+        // For the older OCR API (v3.2), process the response differently
+        else {
+            if (data.regions) {
+                data.regions.forEach((region: any) => {
+                    region.lines.forEach((line: any) => {
+                        let lineText = "";
+                        line.words.forEach((word: any) => {
+                            lineText += word.text + " ";
+                        });
+                        lines.push(lineText.trim());
+                    });
+                });
+            }
         }
         return lines;
 
