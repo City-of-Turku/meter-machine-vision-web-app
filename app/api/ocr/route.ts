@@ -27,13 +27,10 @@ const performServerSideOCR = async (
         console.error("Server configuration error: Missing Azure credentials.");
         throw new Error("Server configuration error.");
     }
-    
-    let analyzeUrl = ""
-    if (OCR4 == true) {
-        analyzeUrl = `${AZURE_ENDPOINT}computervision/imageanalysis:analyze?api-version=2024-02-01&model-version=latest&features=read&language=en`;
-    } else {
-        analyzeUrl = `${AZURE_ENDPOINT}vision/v3.2/ocr?language=en&detectOrientation=true`;
-    }
+
+    const analyzeUrl = OCR4 === true
+    ? `${AZURE_ENDPOINT}computervision/imageanalysis:analyze?api-version=2024-02-01&model-version=latest&features=read&language=en`
+    : `${AZURE_ENDPOINT}vision/v3.2/ocr?language=en&detectOrientation=true`;
 
     const headers = {
         'Content-Type': mimeType || 'application/octet-stream',
