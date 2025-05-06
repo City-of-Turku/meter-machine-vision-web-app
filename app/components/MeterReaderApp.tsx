@@ -108,7 +108,11 @@ const MeterReaderApp = () => {
                 return;
             }
         }
-        else formData.append('image', image); // If not using preprocess, send the original image
+        else {
+            // If not using preprocess, send the original image
+            setProcessedPreview(null); 
+            formData.append('image', image); 
+        } 
         
         const apiUrl = `/api/openai${useMockResults ? '?useMock=true' : ''}`;
         console.log(`Calling API: ${apiUrl}`); // For debugging
