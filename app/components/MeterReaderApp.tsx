@@ -7,6 +7,7 @@ import { ImageUp, Camera, Copy, Loader2, CheckCircle, XCircle, Info } from 'luci
 import { motion, AnimatePresence } from 'framer-motion';
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { preprocessImage } from '../utils/preprocessUtils';
 
 // Define the structure for the extracted data
 interface ExtractedData {
@@ -17,6 +18,7 @@ interface ExtractedData {
 const MAX_FILE_SIZE_MB = 4;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 const MOCK_SWITCH_ENABLED = process.env.NEXT_PUBLIC_MOCK_SWITCH;
+const PREPROCESS_SWITCH_ENABLED = process.env.NEXT_PUBLIC_PREPROCESS_SWITCH;
 
 
 // Client-side helper functions
@@ -38,6 +40,8 @@ const MeterReaderApp = () => {
     const [copiedSerial, setCopiedSerial] = useState<boolean>(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const [useMockResults, setUseMockResults] = useState(false);
+    const [processedPreview, setProcessedPreview] = useState<string | null>(null);
+    const [usePreprocess, setUsePreprocess] = useState(false);
 
     const primaryColor = 'rgb(0, 98, 174)';
     const secondaryColor = 'rgb(191, 230, 246)';
@@ -57,6 +61,7 @@ const MeterReaderApp = () => {
         setError(null);
         setCopiedMeter(false);
         setCopiedSerial(false);
+        setProcessedPreview(null);
 
         if (!newImage) {
             setImage(null); setPreview(null); return;
@@ -89,8 +94,26 @@ const MeterReaderApp = () => {
         setCopiedSerial(false);
 
         const formData = new FormData();
-        formData.append('image', image);
-
+        // If using preprocess, process the image before sending
+        if (usePreprocess) {
+            try {
+                const processedBlob = await preprocessImage(image, false);
+                formData.append('image', processedBlob, 'processed.png');
+                const processedUrl = URL.createObjectURL(processedBlob);
+                setProcessedPreview(processedUrl);
+            } catch (err) {
+                console.error("Error during image preprocessing:", err);
+                setError('Failed to preprocess image.');
+                setLoading(false);
+                return;
+            }
+        }
+        else {
+            // If not using preprocess, send the original image
+            setProcessedPreview(null); 
+            formData.append('image', image); 
+        } 
+        
         const apiUrl = `/api/openai${useMockResults ? '?useMock=true' : ''}`;
         console.log(`Calling API: ${apiUrl}`); // For debugging
 
@@ -125,7 +148,7 @@ const MeterReaderApp = () => {
         } finally {
             setLoading(false);
         }
-    }, [image, useMockResults]);
+    }, [image, useMockResults, usePreprocess]);
 
     const handleCopy = useCallback((text: string | null, type: 'meter' | 'serial') => {
         if (!text) return;
@@ -155,6 +178,7 @@ const MeterReaderApp = () => {
     const handleClear = useCallback(() => {
         setImage(null); setPreview(null); setExtractedData(null); setError(null);
         setCopiedMeter(false); setCopiedSerial(false);
+        setProcessedPreview(null);
         // Optionally reset mock switch? Or keep its state? Keeping state for now.
         // setUseMockResults(false);
         if (inputRef.current) inputRef.current.value = '';
@@ -183,17 +207,30 @@ const MeterReaderApp = () => {
                 <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-center" style={{ color: primaryColor }}>
                     Meter Reader AI
                 </h1>
-                 {MOCK_SWITCH_ENABLED && (
                     <div className="flex items-center space-x-2 justify-center pb-2">
-                         <Switch
-                            id="mock-mode"
-                            checked={useMockResults}
-                            onCheckedChange={setUseMockResults}
-                            aria-label="Toggle mock results"
-                          />
-                         <Label htmlFor="mock-mode" className="text-sm font-medium" style={{ color: primaryColor }}>Use Mock Results</Label>
+                    {MOCK_SWITCH_ENABLED && (
+                        <React.Fragment>
+                            <Switch
+                                id="mock-mode"
+                                checked={useMockResults}
+                                onCheckedChange={setUseMockResults}
+                                aria-label="Toggle mock results"
+                            />
+                            <Label htmlFor="mock-mode" className="text-sm font-medium" style={{ color: primaryColor }}>Use Mock Results</Label>
+                         </React.Fragment>
+                    )}
+                    {PREPROCESS_SWITCH_ENABLED && (
+                        <React.Fragment>
+                            <Switch
+                                id="preprocess-mode"
+                                checked={usePreprocess}
+                                onCheckedChange={setUsePreprocess}
+                                aria-label="Toggle preprocess image"
+                            />
+                            <Label htmlFor="preprocess-mode" className="text-sm font-medium" style={{ color: primaryColor }}>Preprocess image</Label>
+                         </React.Fragment>
+                    )}
                     </div>
-                 )}
 
                  {/* Input Section */}
                  <div style={boxStyle}>
@@ -245,6 +282,20 @@ const MeterReaderApp = () => {
                          </div>
                      </motion.div>)}
                  </AnimatePresence>
+
+                 {processedPreview && (
+                    <motion.div style={boxStyle} variants={imageVariants} initial="hidden" animate="visible" exit="exit" layout>
+                        <h2 className="text-xl sm:text-2xl font-semibold mb-4 text-center" style={{ color: primaryColor }}>Preprocessed Image</h2>
+                        <div className="flex justify-center max-h-96 overflow-hidden rounded-lg border border-gray-200">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                alt="Preprocessed version"
+                                src={processedPreview}
+                                className="object-contain w-auto h-auto max-w-full max-h-full"
+                            />
+                        </div>
+                    </motion.div>
+                )}
 
                  {/* Loading Indicator Area */}
                  {loading && (

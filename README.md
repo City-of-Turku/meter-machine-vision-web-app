@@ -34,6 +34,10 @@ To enable the mock switch for debugging purposes, set a truthy value for the fol
 
 - `NEXT_PUBLIC_MOCK_SWITCH`
 
+To enable image preprocessing option, set a truthy value for:
+
+- `NEXT_PUBLIC_PREPROCESS_SWITCH`
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Docker Deployment
