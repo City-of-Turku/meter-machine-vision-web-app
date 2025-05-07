@@ -28,7 +28,7 @@ const performServerSideOCR = async (
         throw new Error("Server configuration error.");
     }
 
-    const analyzeUrl = OCR4 === true
+    const analyzeUrl = OCR4
     ? `${AZURE_ENDPOINT}computervision/imageanalysis:analyze?api-version=2024-02-01&model-version=latest&features=read&language=en`
     : `${AZURE_ENDPOINT}vision/v3.2/ocr?language=en&detectOrientation=true`;
 
@@ -55,7 +55,7 @@ const performServerSideOCR = async (
 
         // Process the response
         const lines: string[] = [];
-        if (OCR4 == true) {
+        if (OCR4) {
             const blocks = data.readResult?.blocks || [];   
             if (blocks.length > 0) {
                 blocks.forEach((block: any) => {
