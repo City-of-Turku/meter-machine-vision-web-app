@@ -29,6 +29,9 @@ Create .env.local file and add following envs:
 - `AZURE_OPENAI_API_KEY`
 - `AZURE_OPENAI_DEPLOYMENT_NAME`
 - `AZURE_OPENAI_API_VERSION`
+- `OPENAI_PROVIDER` this is optional, use either 'azure' or 'openai'. Default is azure.
+- `OPENAI_API_KEY` use this instead of azure key when using openai as provider.
+- `OPENAI_MODEL_NAME` use this instead of azure model name when using openai as provider.
 
 To enable the mock switch for debugging purposes, set a truthy value for the following environment variable:
 

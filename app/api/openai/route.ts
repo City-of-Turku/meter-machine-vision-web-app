@@ -1,20 +1,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { type NextRequest, NextResponse } from 'next/server';
 import { Buffer } from 'buffer';
-import { AzureOpenAI } from "openai";
+import { OpenAI, AzureOpenAI } from "openai";
 
-// Environment Variables for Azure OpenAI
-const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
-const apiKey = process.env.AZURE_OPENAI_API_KEY;
-const deploymentName = process.env.AZURE_OPENAI_DEPLOYMENT_NAME;
-const apiVersion = process.env.AZURE_OPENAI_API_VERSION;
+// --- Environment Variables ---
+const OPENAI_PROVIDER = process.env.OPENAI_PROVIDER || 'azure'; // Default to 'azure', can be 'openai'
 
-if (!endpoint || !apiKey || !deploymentName) {
-    console.error("Missing Azure OpenAI configuration.");
-    throw new Error("Server configuration error.");
-}
+// For Azure OpenAI
+const AZURE_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT;
+const AZURE_API_KEY = process.env.AZURE_OPENAI_API_KEY;
+const AZURE_DEPLOYMENT_NAME = process.env.AZURE_OPENAI_DEPLOYMENT_NAME;
+const AZURE_API_VERSION = process.env.AZURE_OPENAI_API_VERSION;
 
-const MAX_FILE_SIZE_MB = 4; // Keep file size limits reasonable for API calls
+// For Standard OpenAI
+const STANDARD_OPENAI_API_KEY = process.env.OPENAI_API_KEY; // Your standard OpenAI API Key
+const STANDARD_OPENAI_MODEL = process.env.OPENAI_MODEL_NAME || 'gpt-4o'; // Default model for standard OpenAI
+
+// --- Constants ---
+const MAX_FILE_SIZE_MB = 4;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 interface ExtractedData {
@@ -22,33 +25,52 @@ interface ExtractedData {
     serialNumber: string | null;
 }
 
-// Helper function to check file type
 const isFileTypeValid = (file: File): boolean => {
     return file.type.startsWith('image/');
 };
 
-// Helper function to check file size
 const isFileSizeValid = (file: File): boolean => {
     return file.size <= MAX_FILE_SIZE_BYTES;
 };
 
-// Function to interact with Azure OpenAI GPT-4o
-const performAzureOpenAIAnalysis = async (
+// --- Unified OpenAI Analysis Function ---
+const performOpenAIAnalysis = async (
     fileContent: Buffer,
     mimeType: string
 ): Promise<ExtractedData> => {
-    if (!endpoint || !apiKey || !deploymentName || !apiVersion) {
-        console.error("Server configuration error: Missing Azure OpenAI credentials.");
-        throw new Error("Server configuration error.");
-    }
+    let client: OpenAI | AzureOpenAI; // Union type for the OpenAI client
+    let modelToUse: string;
+    let providerName: string;
 
-    // Initialize the AzureOpenAI client
-    const client = new AzureOpenAI({
-        apiKey,
-        apiVersion,
-        endpoint,
-        deployment: deploymentName,
-    });
+    if (OPENAI_PROVIDER === 'azure') {
+        if (!AZURE_ENDPOINT || !AZURE_API_KEY || !AZURE_DEPLOYMENT_NAME || !AZURE_API_VERSION) {
+            console.error("Missing Azure OpenAI configuration for 'azure' provider.");
+            throw new Error("Server configuration error: Azure OpenAI credentials missing.");
+        }
+        client = new AzureOpenAI({
+            apiKey: AZURE_API_KEY,
+            apiVersion: AZURE_API_VERSION,
+            endpoint: AZURE_ENDPOINT,
+            deployment: AZURE_DEPLOYMENT_NAME, // This is specific to the AzureOpenAI client constructor
+        });
+        modelToUse = AZURE_DEPLOYMENT_NAME; // For Azure, the 'model' in the chat completion create call is the deployment name
+        providerName = "Azure OpenAI";
+        console.log(`Using Azure OpenAI. Deployment: ${AZURE_DEPLOYMENT_NAME}`);
+    } else if (OPENAI_PROVIDER === 'openai') {
+        if (!STANDARD_OPENAI_API_KEY) {
+            console.error("Missing OpenAI API Key for 'openai' provider.");
+            throw new Error("Server configuration error: Standard OpenAI API Key missing.");
+        }
+        client = new OpenAI({ // Initialize the standard OpenAI client
+            apiKey: STANDARD_OPENAI_API_KEY,
+        });
+        modelToUse = STANDARD_OPENAI_MODEL;
+        providerName = "OpenAI";
+        console.log(`Using Standard OpenAI. Model: ${STANDARD_OPENAI_MODEL}`);
+    } else {
+        console.error(`Invalid OPENAI_PROVIDER: ${OPENAI_PROVIDER}. Must be 'azure' or 'openai'.`);
+        throw new Error("Server configuration error: Invalid AI provider specified.");
+    }
 
     // Convert image buffer to base64 data URL
     const base64Image = fileContent.toString('base64');
@@ -78,19 +100,17 @@ const performAzureOpenAIAnalysis = async (
     ];
 
     try {
-        console.log(`Sending request to Azure OpenAI deployment: ${deploymentName}`);
-        // console.log("endpoint:", endpoint);
-        // console.log("apiversion:", apiVersion);
+        console.log(`Sending request to ${providerName} model: ${modelToUse}`);
         const response = await client.chat.completions.create({
-            model: deploymentName, // Your GPT-4o deployment name
+            model: modelToUse,
             messages,
-            max_tokens: 150, // Adjust as needed, but should be enough for JSON
-            temperature: 0.1, // Lower temperature for more deterministic output
+            // max_tokens: 600, // Optional: Adjust as needed
+            // temperature: 0.1, // Optional: Lower temperature for more deterministic output
         });
 
         const choice = response.choices[0];
         if (!choice || !choice.message?.content) {
-            console.error("Azure OpenAI response missing content:", response);
+            console.error(`${providerName} response missing content:`, response);
             throw new Error("Failed to get a valid response from AI model.");
         }
 
@@ -98,13 +118,11 @@ const performAzureOpenAIAnalysis = async (
         console.log("Raw AI Response:", content);
 
         // Attempt to clean and parse the JSON response
-        // Sometimes the model might wrap the JSON in ```json ... ```
         if (content.startsWith('```json')) {
             content = content.substring(7, content.length - 3).trim();
         } else if (content.startsWith('```')) {
              content = content.substring(3, content.length - 3).trim();
         }
-
 
         try {
             const parsedJson = JSON.parse(content);
@@ -116,22 +134,21 @@ const performAzureOpenAIAnalysis = async (
             return result;
         } catch (parseError: any) {
             console.error("Failed to parse JSON response from AI:", content, parseError);
-            // Fallback: Try simple string matching if JSON parsing fails (less reliable)
+            // Fallback: Try simple string matching if JSON parsing fails
             const meterMatch = content.match(/meterValue["']?\s*:\s*["']?([^,"'}]+)/i);
             const serialMatch = content.match(/serialNumber["']?\s*:\s*["']?([^,"'}]+)/i);
             return {
                 meterValue: meterMatch ? meterMatch[1].trim() : "Parse Error",
                 serialNumber: serialMatch ? serialMatch[1].trim() : "Parse Error"
             };
-            // throw new Error("AI model did not return valid JSON.");
         }
 
     } catch (error: any) {
-        console.error("Error calling Azure OpenAI:", error.response?.data || error.message || error);
+        console.error(`Error calling ${providerName}:`, error.response?.data || error.message || error);
         if (error.response?.data?.error?.message) {
-             throw new Error(`Azure OpenAI API Error: ${error.response.data.error.message}`);
+             throw new Error(`${providerName} API Error: ${error.response.data.error.message}`);
         }
-        throw new Error("Failed to process image with Azure OpenAI.");
+        throw new Error(`Failed to process image with ${providerName}.`);
     }
 };
 
@@ -140,24 +157,13 @@ export async function POST(req: NextRequest) {
     const useMock = req.nextUrl.searchParams.get('useMock') === 'true';
     if (useMock) {
         console.warn(">>> Using Mock API Results <<<");
-        // Simulate network delay
-        await new Promise(resolve => setTimeout(resolve, 800)); // Adjust delay as needed
-        // Return mock data matching the ExtractedData structure
+        await new Promise(resolve => setTimeout(resolve, 800));
         return NextResponse.json({
             results: {
                 meterValue: "MOCK_12345.67",
                 serialNumber: "MOCK_SN_987XYZ"
             }
         });
-    }
-
-    // Check Azure OpenAI credentials
-    if (!endpoint || !apiKey || !deploymentName) {
-        console.error("API route error: Azure OpenAI credentials not configured.");
-        return NextResponse.json(
-            { error: "AI service is not configured correctly." },
-            { status: 500 }
-        );
     }
 
     if (!req.headers.get("content-type")?.startsWith("multipart/form-data")) {
@@ -182,20 +188,18 @@ export async function POST(req: NextRequest) {
         const arrayBuffer = await imageFile.arrayBuffer();
         const fileBuffer = Buffer.from(arrayBuffer);
 
-        // Perform analysis using Azure OpenAI
-        const analysisResults = await performAzureOpenAIAnalysis(fileBuffer, imageFile.type);
+        // Perform analysis using the configured OpenAI provider
+        const analysisResults = await performOpenAIAnalysis(fileBuffer, imageFile.type);
 
         // Return the structured results
         return NextResponse.json({ results: analysisResults });
 
     } catch (error: any) {
         console.error('API Route Handler Error:', error);
-
         const clientMessage = error instanceof Error && error.message ? error.message : "An unexpected error occurred during image processing.";
-
         return NextResponse.json(
             { error: clientMessage },
-            { status: 500 } // Or determine appropriate status code
+            { status: 500 }
         );
     }
 }
